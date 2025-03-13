@@ -9,12 +9,20 @@ int main() {
     return 0;
 }`;
 
+// Storage key
+const STORAGE_KEY = 'cProgramRepository';
+
 // Functions
 function openNewProgramModal(editProgram = null) {
     const programModal = document.getElementById('programModal');
     const programTitle = document.getElementById('programTitle');
     const programDescription = document.getElementById('programDescription');
     const saveProgram = document.getElementById('saveProgram');
+
+    if (!programModal || !programTitle || !programDescription || !saveProgram) {
+        console.error('Required elements not found');
+        return;
+    }
 
     programModal.classList.remove('hidden');
     programModal.classList.add('flex');
@@ -36,6 +44,8 @@ function openNewProgramModal(editProgram = null) {
 
 function closeProgramModal() {
     const programModal = document.getElementById('programModal');
+    if (!programModal) return;
+    
     programModal.classList.add('hidden');
     programModal.classList.remove('flex');
 }
@@ -44,6 +54,11 @@ async function saveProgramHandler() {
     const programTitle = document.getElementById('programTitle');
     const programDescription = document.getElementById('programDescription');
     const saveProgram = document.getElementById('saveProgram');
+
+    if (!programTitle || !programDescription || !saveProgram) {
+        console.error('Required elements not found');
+        return;
+    }
 
     const title = programTitle.value.trim();
     const description = programDescription.value.trim();
@@ -73,29 +88,41 @@ async function saveProgramHandler() {
         programs.push(programData);
     }
 
-    savePrograms();
-    renderPrograms();
-    closeProgramModal();
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(programs));
+        console.log('Program saved successfully:', programData);
+        renderPrograms();
+        closeProgramModal();
+    } catch (error) {
+        console.error('Error saving program:', error);
+        alert('Failed to save program. Please try again.');
+    }
 }
 
 function loadPrograms() {
-    const savedPrograms = localStorage.getItem('c-programs');
-    if (savedPrograms) {
-        try {
+    try {
+        const savedPrograms = localStorage.getItem(STORAGE_KEY);
+        console.log('Loading saved programs:', savedPrograms);
+        if (savedPrograms) {
             programs = JSON.parse(savedPrograms);
-            renderPrograms();
-        } catch (error) {
-            console.error('Error loading programs:', error);
+        } else {
             programs = [];
         }
+        renderPrograms();
+    } catch (error) {
+        console.error('Error loading programs:', error);
+        programs = [];
+        renderPrograms();
     }
 }
 
 function savePrograms() {
     try {
-        localStorage.setItem('c-programs', JSON.stringify(programs));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(programs));
+        console.log('Programs saved to localStorage');
     } catch (error) {
         console.error('Error saving programs:', error);
+        alert('Failed to save programs. Please try again.');
     }
 }
 
@@ -108,17 +135,36 @@ function deleteProgram(index) {
 }
 
 async function compileProgram(code) {
+    if (!code || typeof code !== 'string') {
+        console.error('Invalid code input:', code);
+        return;
+    }
+
     const compilationModal = document.getElementById('compilationModal');
+    const compilationOutput = document.getElementById('compilationOutput');
+
+    if (!compilationModal || !compilationOutput) {
+        console.error('Required elements not found');
+        return;
+    }
+
     compilationModal.classList.remove('hidden');
     compilationModal.classList.add('flex');
     
-    const compilationOutput = document.getElementById('compilationOutput');
     compilationOutput.innerHTML = 'Compiling...';
     compilationOutput.className = 'bg-gray-100 p-4 rounded-lg font-mono text-sm max-h-96 overflow-auto';
 
     try {
+        if (!window.compiler) {
+            throw new Error('Compiler not initialized');
+        }
+
+        console.log('Compiling code:', code);
         const result = await window.compiler.compile(code);
+        console.log('Compilation result:', result);
+
         compilationOutput.innerHTML = result.output.replace(/\n/g, '<br>');
+        compilationOutput.classList.remove('text-red-600', 'text-green-600');
         
         if (result.type === 'error') {
             compilationOutput.classList.add('text-red-600');
@@ -126,6 +172,7 @@ async function compileProgram(code) {
             compilationOutput.classList.add('text-green-600');
         }
     } catch (error) {
+        console.error('Compilation error:', error);
         compilationOutput.innerHTML = `Error: ${error.message}`;
         compilationOutput.classList.add('text-red-600');
     }
@@ -133,6 +180,11 @@ async function compileProgram(code) {
 
 function renderPrograms() {
     const programsContainer = document.getElementById('programsContainer');
+    if (!programsContainer) {
+        console.error('Programs container not found');
+        return;
+    }
+
     programsContainer.innerHTML = '';
     
     if (!programs || programs.length === 0) {
@@ -147,7 +199,7 @@ function renderPrograms() {
 
     programs.forEach((program, index) => {
         const card = document.createElement('div');
-        card.className = 'bg-white rounded-lg shadow-md overflow-hidden';
+        card.className = 'bg-white rounded-lg shadow-md overflow-hidden mb-4';
         card.innerHTML = `
             <div class="p-6">
                 <div class="flex justify-between items-start mb-4">
@@ -201,6 +253,8 @@ window.compileProgram = compileProgram;
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM loaded, initializing application...');
+
     // Setup Ace Editor
     editor = ace.edit("editor");
     editor.setTheme("ace/theme/monokai");
@@ -216,6 +270,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const cancelBtn = document.getElementById('cancelBtn');
     const saveProgram = document.getElementById('saveProgram');
 
+    if (!newProgramBtn || !closeModal || !cancelBtn || !saveProgram) {
+        console.error('Required elements not found during initialization');
+        return;
+    }
+
     newProgramBtn.addEventListener('click', () => openNewProgramModal());
     closeModal.addEventListener('click', closeProgramModal);
     cancelBtn.addEventListener('click', closeProgramModal);
@@ -224,11 +283,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.closeCompilationModal').forEach(button => {
         button.addEventListener('click', () => {
             const compilationModal = document.getElementById('compilationModal');
-            compilationModal.classList.add('hidden');
-            compilationModal.classList.remove('flex');
+            if (compilationModal) {
+                compilationModal.classList.add('hidden');
+                compilationModal.classList.remove('flex');
+            }
         });
     });
 
     // Load saved programs
     loadPrograms();
+    console.log('Application initialized successfully');
 });
