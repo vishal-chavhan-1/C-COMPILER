@@ -1,135 +1,115 @@
-// Simulated C Compiler functionality
 class CCompiler {
     constructor() {
-        this.defaultHeaders = '#include <stdio.h>\n#include <stdlib.h>\n';
+        console.log('C Compiler initialized');
     }
 
-    // Function to validate C code
-    validateCode(code) {
-        if (!code || typeof code !== 'string' || code.trim() === '') {
-            throw new Error('Code cannot be empty');
-        }
-
-        // Basic validation checks
-        const mainFunctionCheck = /\bmain\s*\([^)]*\)\s*{/;
-        if (!mainFunctionCheck.test(code)) {
-            throw new Error('No main() function found');
-        }
-
-        return true;
-    }
-
-    // Function to simulate compilation and execution
-    compile(code) {
+    async compile(code) {
         try {
+            console.log('Compiling code:', code);
+            
+            // Basic validation
             if (!code || typeof code !== 'string') {
                 throw new Error('Invalid code input');
             }
 
-            this.validateCode(code);
+            // Check for main function
+            if (!code.includes('main()')) {
+                throw new Error('No main() function found');
+            }
+
+            // Check for basic syntax
+            const errors = this.checkSyntax(code);
+            if (errors.length > 0) {
+                return {
+                    success: false,
+                    type: 'error',
+                    output: 'Compilation Errors:\n' + errors.join('\n')
+                };
+            }
 
             // Simulate compilation delay
-            return new Promise((resolve) => {
-                setTimeout(() => {
-                    // Check for common errors
-                    const errors = this.checkForCommonErrors(code);
-                    if (errors.length > 0) {
-                        resolve({
-                            success: false,
-                            output: `Compilation Error(s):\n${errors.join('\n')}`,
-                            type: 'error'
-                        });
-                        return;
-                    }
+            await new Promise(resolve => setTimeout(resolve, 500));
 
-                    // Simulate successful compilation
-                    resolve({
-                        success: true,
-                        output: 'Compilation successful!\n\nProgram Output:\n' + this.simulateExecution(code),
-                        type: 'success'
-                    });
-                }, 1000);
-            });
+            // Extract printf statements and simulate output
+            const output = this.simulateExecution(code);
+
+            return {
+                success: true,
+                type: 'success',
+                output: 'Compilation successful!\n\nProgram Output:\n' + output
+            };
         } catch (error) {
-            return Promise.resolve({
+            console.error('Compilation error:', error);
+            return {
                 success: false,
-                output: `Error: ${error.message}`,
-                type: 'error'
-            });
+                type: 'error',
+                output: 'Error: ' + error.message
+            };
         }
     }
 
-    // Function to check for common C programming errors
-    checkForCommonErrors(code) {
-        if (!code || typeof code !== 'string') {
-            return ['Invalid code input'];
-        }
-
+    checkSyntax(code) {
         const errors = [];
 
-        try {
-            // Check for missing semicolons
-            const lines = code.split('\n');
-            lines.forEach((line, index) => {
-                const trimmedLine = line.trim();
-                if (trimmedLine !== '' && 
-                    !trimmedLine.endsWith('{') && 
-                    !trimmedLine.endsWith('}') && 
-                    !trimmedLine.endsWith(';') &&
-                    !trimmedLine.startsWith('#')) {
-                    errors.push(`Line ${index + 1}: Missing semicolon`);
-                }
-            });
-
-            // Check for unmatched braces
-            const openBraces = (code.match(/{/g) || []).length;
-            const closeBraces = (code.match(/}/g) || []).length;
-            if (openBraces !== closeBraces) {
-                errors.push('Unmatched braces: Check your { } pairs');
+        // Check for missing semicolons
+        const lines = code.split('\n');
+        lines.forEach((line, index) => {
+            const trimmedLine = line.trim();
+            if (trimmedLine && 
+                !trimmedLine.endsWith('{') && 
+                !trimmedLine.endsWith('}') && 
+                !trimmedLine.endsWith(';') &&
+                !trimmedLine.startsWith('#')) {
+                errors.push(`Line ${index + 1}: Missing semicolon`);
             }
+        });
 
-            // Check for printf without format string
-            if (code.includes('printf(') && !code.match(/printf\s*\(\s*["']/)) {
+        // Check for unmatched braces
+        const openBraces = (code.match(/{/g) || []).length;
+        const closeBraces = (code.match(/}/g) || []).length;
+        if (openBraces !== closeBraces) {
+            errors.push('Unmatched braces: Check your { } pairs');
+        }
+
+        // Check for printf format
+        const printfCalls = code.match(/printf\s*\((.*?)\)/g) || [];
+        printfCalls.forEach(call => {
+            if (!call.includes('"')) {
                 errors.push('printf() used without format string');
             }
-        } catch (error) {
-            errors.push('Error analyzing code: ' + error.message);
-        }
+        });
 
         return errors;
     }
 
-    // Function to simulate program execution
     simulateExecution(code) {
-        if (!code || typeof code !== 'string') {
-            return 'Error: Invalid code input';
+        let output = '';
+
+        // Extract printf statements
+        const printfRegex = /printf\s*\(\s*"([^"]*)"/g;
+        let match;
+
+        while ((match = printfRegex.exec(code)) !== null) {
+            let text = match[1];
+            
+            // Handle escape sequences
+            text = text.replace(/\\n/g, '\n');
+            text = text.replace(/\\t/g, '\t');
+            text = text.replace(/\\r/g, '\r');
+            
+            // Handle format specifiers (simple simulation)
+            text = text.replace(/%d/g, '0');
+            text = text.replace(/%f/g, '0.0');
+            text = text.replace(/%c/g, 'X');
+            text = text.replace(/%s/g, 'string');
+            
+            output += text;
         }
 
-        try {
-            // Extract printf statements and simulate their output
-            let output = '';
-            const printfRegex = /printf\s*\(\s*"([^"]+)"\s*(?:,\s*([^)]+))?\s*\)/g;
-            let match;
-
-            while ((match = printfRegex.exec(code)) !== null) {
-                let formatString = match[1];
-                const args = match[2] ? match[2].split(',').map(arg => arg.trim()) : [];
-                
-                // Replace format specifiers with placeholder values
-                formatString = formatString.replace(/%d/g, '42');
-                formatString = formatString.replace(/%f/g, '3.14');
-                formatString = formatString.replace(/%c/g, 'X');
-                formatString = formatString.replace(/%s/g, 'string');
-                
-                output += formatString + '\n';
-            }
-
-            return output || 'No output generated';
-        } catch (error) {
-            return 'Error executing code: ' + error.message;
-        }
+        return output || 'No output';
     }
 }
 
-// Export the compiler instance
+// Initialize compiler
 window.compiler = new CCompiler();
+console.log('C Compiler ready');
